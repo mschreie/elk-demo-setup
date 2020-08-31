@@ -1,0 +1,70 @@
+---
+- hosts: localhost
+  gather_facts: no
+
+
+  tasks:
+   - name: 
+
+   - name: Create elk-demo Project
+     tower_project:
+       tower_host: "{{ tower_host }}"
+       tower_username: "{{ tower_user }}"
+       tower_password: "{{ tower_password }}"
+       name: "elk-demo"
+       description: "creates 2 Google VMs with ELK stack to analyse twitter tweets"
+       organization: "Default"
+       state: present
+       scm_type: git
+       scm_credential: 
+       
+   
+   - name: Add Tower Project with cache timeout and custom virtualenv
+     tower_project:
+       name: "Foo"
+       description: "Foo bar project"
+       organization: "test"
+       scm_update_on_launch: True
+       scm_update_cache_timeout: 60
+       custom_virtualenv: "/var/lib/awx/venv/ansible-2.2"
+       state: present
+       tower_config_file: "~/tower_cli.cfg"
+
+
+     uri:
+       url: "{{ tower_base_url }}:q
+       user: "{{ tower_user }}"
+       password: "{{ tower_password }}"
+       method: GET
+       force_basic_auth: yes
+       validate_certs: no
+     register: credential_type
+   - name: Debug credential type ID
+     debug:
+        msg:  "Credential Type is {{ credential_type.json.results.0.id }}"
+   
+   - name: create new Google Credentials
+     uri:
+       url: "{{ tower_base_url }}credentials/"
+       user: "{{ tower_user }}"
+       password: "{{ tower_password }}"
+       method: GET
+       force_basic_auth: yes
+       validate_certs: no
+       body_format: json
+       body: | 
+          {
+            "name": "GCE Service Account for elk-demo",
+            "description": "GCE Service Account for elk-demo",
+            "organization": null,
+            "credential_type": "{{ credential_type.json.results.0.id }}",
+            "inputs": "{{ lookup('file', gce_credential_file) }},
+            "user": null,
+            "team": null
+           }
+     register: credential_create
+   - name: Debug credential create 
+     debug:
+        msg:  |
+         {{ credential_create }}
+   
