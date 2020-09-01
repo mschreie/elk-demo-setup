@@ -1,0 +1,48 @@
+---
+- hosts: localhost
+  gather_facts: no
+
+
+  tasks:
+   - name: Create elk-demo Project
+     tower_project:
+       tower_host: "{{ tower_host }}"
+       tower_username: "{{ tower_user }}"
+       tower_password: "{{ tower_password }}"
+       validate_certs: no
+       name: "elk-demo"
+       description: "creates 2 Google VMs with ELK stack to analyse twitter tweets"
+       organization: "Default"
+       state: present
+       scm_type: git
+       scm_credential: "GitHub Credential"
+       scm_url: "{{ scm_url }}"
+       scm_branch: "{{ scm_branch }}"
+       
+   - name: Add GCE elk-demo inventory
+     tower_inventory:
+       tower_host: "{{ tower_host }}"
+       tower_username: "{{ tower_user }}"
+       tower_password: "{{ tower_password }}"
+       validate_certs: no
+       name: "elk-demo Inventory"
+       description: "Inventory of the elk-demo project within GCE Environment"
+       organization: "Default"
+       state: present
+
+   - name: Add GCE elk-demo inventory source
+     tower_inventory_source:
+       tower_host: "{{ tower_host }}"
+       tower_username: "{{ tower_user }}"
+       tower_password: "{{ tower_password }}"
+       validate_certs: no
+       name: "elk-demo Inventory source"
+       description: "Inventory source of the elk-demo project within GCE Environment"
+       inventory: "elk-demo Inventory"
+       credential: "GCE Service Account for elk-demo" 
+       source: gce
+       update_on_launch: true
+       overwrite: true
+       overwrite_vars: true
+       source_vars: '{ private: false }'
+       state: present

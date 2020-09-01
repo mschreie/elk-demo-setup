@@ -1,0 +1,61 @@
+---
+- hosts: localhost
+  gather_facts: no
+
+  vars:
+   jobs:
+    - name: "create GCE VMs"
+      description: "creates 2 Google VMs"
+      playbook: "ansible/loop.yml"
+    - name: "delete GCE VMs"
+      description: "deletes Google VMs"
+      playbook: "ansible/loop_del.yml"
+    - name: "wait VMs"
+      description: "wait for VMs to come up"
+      playbook: "ansible/wait_vms.yml"
+    - name: "deploy ELK stack"
+      description: "assure basic config and deploy and configure elastic, nginx, logstash"
+      playbook: "ansible/deploy_application.yml"
+
+  tasks:
+   - name: Create JobTemplate for {{ item.name }}
+     tower_job_template:
+       tower_host: "{{ tower_host }}"
+       tower_username: "{{ tower_user }}"
+       tower_password: "{{ tower_password }}"
+       validate_certs: no
+       name: "{{ item.name }}"
+       description: "{{ item.description }}"
+       playbook: "{{ item.playbook }}"
+       job_type: "run"
+       inventory: "Demo Inventory"
+       project: "elk-demo"
+       credential: "GCE Service Account for elk-demo"
+       state: "present"
+     loop: "{{ jobs }}"
+
+   - name: Get inventory id for GCE inventory
+     uri:
+       url: "{{ tower_base_url }}inventories/?name=elk-demo+Inventory"
+       user: "{{ tower_user }}"
+       password: "{{ tower_password }}"
+       method: GET
+       force_basic_auth: yes
+       validate_certs: no
+     register: inventory_object
+   - name: Debug inventory ID
+     debug:
+        msg:  "Inventory ID is {{ inventory_object.json.results.0.id }}"
+
+   - name: Create WorkflowTemplate 
+     tower_workflow_template:
+       tower_host: "{{ tower_host }}"
+       tower_username: "{{ tower_user }}"
+       tower_password: "{{ tower_password }}"
+       validate_certs: no
+       name: elk-demo Workflow Template
+       description: Creates 2 GCE VMs and deploy ELK stack to analyse Twitter Tweets
+       organization: Default
+       inventory: "{{ inventory_object.json.results.0.id }}"
+#       schema: "{{ lookup('file', 'my_workflow.json') }}"
+
