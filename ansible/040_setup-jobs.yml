@@ -42,6 +42,23 @@
        state: "present"
      loop: "{{ jobs }}"
 
+   - name: Create JobTemplate for deploy ELK stack
+     tower_job_template:
+       tower_host: "{{ tower_host }}"
+       tower_username: "{{ tower_user }}"
+       tower_password: "{{ tower_password }}"
+       validate_certs: no
+       name: "deploy ELK stack"
+       description: "assure basic config and deploy and configure elastic, nginx, logstash"
+       playbook: "ansible/deploy_application.yml"
+       job_type: "run"
+       inventory: "elk-demo Inventory"
+       project: "elk-demo"
+       credential: "Vault Key"
+       state: "present"
+
+
+
    - name: Get inventory id for GCE inventory
      uri:
        url: "{{ tower_base_url }}inventories/?name=elk-demo+Inventory"
