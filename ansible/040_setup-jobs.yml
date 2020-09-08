@@ -3,31 +3,72 @@
   gather_facts: no
 
   vars:
+   workflow_name: elk-demo Workflow Template
    jobs:
-    - name: "create GCE VMs"
-      description: "creates 2 Google VMs"
-      playbook: "ansible/loop.yml"
-      credential: "GCE Service Account for elk-demo"
-      inventory: "Demo Inventory"
     - name: "delete GCE VMs"
       description: "deletes Google VMs"
+      node_identifier: delete_GCEvms_node
       playbook: "ansible/loop_del.yml"
       credential: "GCE Service Account for elk-demo"
+      credentials: 
+        - "GCE Service Account for elk-demo"
       inventory: "Demo Inventory"
-    - name: "wait VMs"
-      description: "wait for VMs to come up"
-      playbook: "ansible/wait_vms.yml"
-      credential: "GCE Service Account for elk-demo"
-      inventory: "Demo Inventory"
+      #always_nodes: []
+      #failure_nodes: []
+      #success_nodes: []
+
     - name: "deploy ELK stack"
       description: "assure basic config and deploy and configure elastic, nginx, logstash"
+      node_identifier: deploy_ELKstack_node
       playbook: "ansible/deploy_application.yml"
       credential: "VMs SSH Credential"
+      credentials: 
+        - "GCE Service Account for elk-demo"
+        - "VMs SSH Credential"
+        - "Vault Key"
       inventory: "elk-demo Inventory"
+      #always_nodes: []
+      failure_nodes:
+        - delete_GCEvms_node
+      #success_nodes: []
+
+    - name: "wait VMs"
+      description: "wait for VMs to come up"
+      node_identifier: wait_VMs
+      playbook: "ansible/wait_vms.yml"
+      credential: "GCE Service Account for elk-demo"
+      credentials: 
+        - "GCE Service Account for elk-demo"
+      inventory: "Demo Inventory"
+      #always_nodes: []
+      failure_nodes:
+        - delete_GCEvms_node
+      success_nodes:
+        - deploy_ELKstack_node
+
+    - name: "create GCE VMs"
+      description: "creates 2 Google VMs"
+      node_identifier: create_GCEvms_node
+      playbook: "ansible/loop.yml"
+      credential: "GCE Service Account for elk-demo"
+      credentials: 
+        - "GCE Service Account for elk-demo"
+      inventory: "Demo Inventory"
+      #always_nodes: []
+      failure_nodes:
+        - delete_GCEvms_node
+      success_nodes:
+        - wait_VMs
+
 
   tasks:
+#  Note: both work awx.awx.tower_job_template or tower_job_template
+#  awx version needs config file to not throw errer, even though config file is empty.
+#  non-awx version can only add single credential, but can do this repeatadly, by calling twice.
+#  i go for awx version at the moment...
    - name: Create JobTemplate for {{ item.name }}
-     tower_job_template:
+     awx.awx.tower_job_template:
+       tower_config_file: files/empty.cfg
        tower_host: "{{ tower_host }}"
        tower_username: "{{ tower_user }}"
        tower_password: "{{ tower_password }}"
@@ -38,24 +79,26 @@
        job_type: "run"
        inventory: "{{ item.inventory }}"
        project: "elk-demo"
-       credential: "{{ item.credential }}"
+       ## credential: "{{ item.credential }}"
+       credentials: "{{ item.credentials }}"
        state: "present"
      loop: "{{ jobs }}"
 
-   - name: Create JobTemplate for deploy ELK stack
-     tower_job_template:
-       tower_host: "{{ tower_host }}"
-       tower_username: "{{ tower_user }}"
-       tower_password: "{{ tower_password }}"
-       validate_certs: no
-       name: "deploy ELK stack"
-       description: "assure basic config and deploy and configure elastic, nginx, logstash"
-       playbook: "ansible/deploy_application.yml"
-       job_type: "run"
-       inventory: "elk-demo Inventory"
-       project: "elk-demo"
-       credential: "Vault Key"
-       state: "present"
+# only needed as i wanted 2 credentials within one job_template and did not use the awx version...
+#   - name: Create JobTemplate for deploy ELK stack
+#     tower_job_template:
+#       tower_host: "{{ tower_host }}"
+#       tower_username: "{{ tower_user }}"
+#       tower_password: "{{ tower_password }}"
+#       validate_certs: no
+#       name: "deploy ELK stack"
+#       description: "assure basic config and deploy and configure elastic, nginx, logstash"
+#       playbook: "ansible/deploy_application.yml"
+#       job_type: "run"
+#       inventory: "elk-demo Inventory"
+#       project: "elk-demo"
+#       credential: "Vault Key"
+#       state: "present"
 
 
 
@@ -73,14 +116,36 @@
         msg:  "Inventory ID is {{ inventory_object.json.results.0.id }}"
 
    - name: Create WorkflowTemplate 
-     tower_workflow_template:
+##     tower_workflow_template:
+     awx.awx.tower_workflow_job_template:
+       tower_config_file: files/empty.cfg
        tower_host: "{{ tower_host }}"
        tower_username: "{{ tower_user }}"
        tower_password: "{{ tower_password }}"
        validate_certs: no
-       name: elk-demo Workflow Template
+
+       name: "{{ workflow_name }}"
        description: Creates 2 GCE VMs and deploy ELK stack to analyse Twitter Tweets
        organization: Default
        inventory: "{{ inventory_object.json.results.0.id }}"
 #       schema: "{{ lookup('file', 'my_workflow.json') }}"
+
+   - name: Create delete GCE VMs node
+     awx.awx.tower_workflow_job_template_node:
+       tower_config_file: files/empty.cfg
+       tower_host: "{{ tower_host }}"
+       tower_username: "{{ tower_user }}"
+       tower_password: "{{ tower_password }}"
+       validate_certs: no
+
+       identifier: "{{ item.node_identifier }}"
+       workflow: "{{ workflow_name }}"
+       unified_job_template: "{{ item.name }}"
+       organization: Default
+       success_nodes: "{{ item.success_nodes | default(omit) }}"
+       always_nodes:  "{{ item.always_nodes  | default(omit) }}"
+       failure_nodes: "{{ item.failure_nodes | default(omit) }}"
+     loop: "{{ jobs }}"
+
+
 
