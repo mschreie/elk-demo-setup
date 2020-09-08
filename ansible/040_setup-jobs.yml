@@ -26,6 +26,7 @@
         - "GCE Service Account for elk-demo"
         - "VMs SSH Credential"
         - "Vault Key"
+        - "Twitter API Credential"
       inventory: "elk-demo Inventory"
       #always_nodes: []
       failure_nodes:
@@ -60,10 +61,19 @@
       success_nodes:
         - wait_VMs
 
+   survey_spec:
+    name: "ELK Stack Demo - Definition"
+    description: "Parameters needed for the ELK Demo"
+    spec: 
+     - question_name: "Twitter Keyword"
+       question_description: "Keyword we search for within all tweets"
+       required: true
+       type: "text"
+       variable: "tw_keyword"
 
   tasks:
 #  Note: both work awx.awx.tower_job_template or tower_job_template
-#  awx version needs config file to not throw errer, even though config file is empty.
+#  awx version needs config file to not throw error, even though config file is empty.
 #  non-awx version can only add single credential, but can do this repeatadly, by calling twice.
 #  i go for awx version at the moment...
    - name: Create JobTemplate for {{ item.name }}
@@ -129,6 +139,8 @@
        organization: Default
        inventory: "{{ inventory_object.json.results.0.id }}"
 #       schema: "{{ lookup('file', 'my_workflow.json') }}"
+       survey: "{{ survey_spec }}"
+       survey_enabled: yes
 
    - name: Create delete GCE VMs node
      awx.awx.tower_workflow_job_template_node:
