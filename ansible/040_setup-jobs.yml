@@ -40,7 +40,7 @@
       credential: "GCE Service Account for elk-demo"
       credentials: 
         - "GCE Service Account for elk-demo"
-      inventory: "Demo Inventory"
+      inventory: "elk-demo Inventory"
       #always_nodes: []
       failure_nodes:
         - delete_GCEvms_node
