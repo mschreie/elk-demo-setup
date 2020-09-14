@@ -70,6 +70,17 @@
        required: true
        type: "text"
        variable: "tw_keyword"
+     - question_name: "WebUI UserName"
+       question_description: "Username to login to WebUI (which is Nginx)"
+       required: true
+       type: "text"
+       default: "admin"
+       variable: "nginx_user"
+     - question_name: "WebUI Password"
+       question_description: "Password to login to WebUI (which is Nginx)"
+       required: true
+       type: "password"
+       variable: "nginx_passwd"
 
   tasks:
 #  Note: both work awx.awx.tower_job_template or tower_job_template
